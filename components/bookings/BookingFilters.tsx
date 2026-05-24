@@ -13,9 +13,22 @@ import {
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { useBookingStats } from '@/hooks/useBookingStats';
+import {
+  BOOKING_PAYMENT_METHOD,
+  BOOKING_STATUS,
+  type BookingPaymentMethod,
+  type BookingStatus,
+} from '@/types/enums';
+
+type BookingFilterValues = {
+  status?: BookingStatus;
+  date?: string;
+  search?: string;
+  payment_method?: BookingPaymentMethod;
+};
 
 interface BookingFiltersProps {
-  onChange: (filters: { status?: string; date?: string; search?: string; payment_method?: string }) => void;
+  onChange: (filters: BookingFilterValues) => void;
 }
 
 export const BookingFilters = ({ onChange }: BookingFiltersProps) => {
@@ -25,14 +38,14 @@ export const BookingFilters = ({ onChange }: BookingFiltersProps) => {
 
   const statuses = [
     { label: 'All', value: 'all', count: stats?.total_bookings },
-    { label: 'Pending', value: 'pending', count: stats?.booking_status?.pending },
-    { label: 'Confirmed', value: 'confirmed', count: stats?.booking_status?.confirmed },
-    { label: 'Started', value: 'started', count: stats?.booking_status?.started },
-    { label: 'Completed', value: 'completed', count: stats?.booking_status?.completed },
-    { label: 'Cancelled', value: 'cancelled', count: stats?.booking_status?.cancelled },
-  ];
+    { label: 'Pending', value: BOOKING_STATUS.PENDING, count: stats?.booking_status?.pending },
+    { label: 'Confirmed', value: BOOKING_STATUS.CONFIRMED, count: stats?.booking_status?.confirmed },
+    { label: 'Started', value: BOOKING_STATUS.STARTED, count: stats?.booking_status?.started },
+    { label: 'Completed', value: BOOKING_STATUS.COMPLETED, count: stats?.booking_status?.completed },
+    { label: 'Cancelled', value: BOOKING_STATUS.CANCELLED, count: stats?.booking_status?.cancelled },
+  ] as const;
 
-  const handleStatusChange = (val: string) => {
+  const handleStatusChange = (val: 'all' | BookingStatus) => {
     setActiveStatus(val);
     onChange({ status: val === 'all' ? undefined : val });
   };
@@ -93,14 +106,21 @@ export const BookingFilters = ({ onChange }: BookingFiltersProps) => {
             />
           </div>
 
-          <Select onValueChange={(val: string | null) => onChange({ payment_method: val || undefined })}>
+          <Select
+            onValueChange={(val: string | null) =>
+              onChange({
+                payment_method:
+                  val && val !== 'all' ? (val as BookingPaymentMethod) : undefined,
+              })
+            }
+          >
             <SelectTrigger className="h-9 w-[150px] text-xs bg-white">
               <SelectValue placeholder="Payment Method" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Methods</SelectItem>
-              <SelectItem value="cash">Cash</SelectItem>
-              <SelectItem value="razorpay">Razorpay</SelectItem>
+              <SelectItem value={BOOKING_PAYMENT_METHOD.CASH}>Cash</SelectItem>
+              <SelectItem value={BOOKING_PAYMENT_METHOD.RAZORPAY}>Razorpay</SelectItem>
             </SelectContent>
           </Select>
         </div>

@@ -1,10 +1,27 @@
 'use client';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { get, patch, post } from '@/lib/api-client';
+import { del, get, patch, post } from '@/lib/api-client';
 import { ApiResponse } from '@/types/api';
-import { Booking } from '@/types/booking';
+import { Booking, BookingPart } from '@/types/booking';
+import type { BookingStatus } from '@/types/enums';
 import { toast } from 'sonner';
+
+type ApiErrorWithCode = Error & {
+  code?: string;
+  status?: number;
+  details?: unknown;
+};
+
+type UpdateBookingStatusPayload = {
+  status: BookingStatus;
+  notes?: string;
+};
+
+type AddBookingPartPayload = {
+  spare_part_id: number;
+  quantity: number;
+};
 
 export const useBookingDetail = (id?: number) => {
   const queryClient = useQueryClient();
@@ -19,17 +36,22 @@ export const useBookingDetail = (id?: number) => {
   });
 
   const updateStatus = useMutation({
-    mutationFn: (status: string) => 
-      patch(`/api/staff/bookings/${id}/update-status/`, { status }),
+    mutationFn: async ({ status, notes }: UpdateBookingStatusPayload) => {
+      try {
+        return await patch<ApiResponse<Booking>>(`/api/staff/bookings/${id}/update-status/`, {
+          status,
+          ...(notes?.trim() ? { notes: notes.trim() } : {}),
+        });
+      } catch (error) {
+        throw error as ApiErrorWithCode;
+      }
+    },
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['bookings'] });
-      // Depending on whether backend returns standard envelope or flat
+      queryClient.invalidateQueries({ queryKey: ['bookings', id] });
       const actualData = data.data || data;
       toast.success(data.message || `Status updated to ${actualData.booking_status}`);
     },
-    onError: (error: any) => {
-      toast.error(error.message || 'Failed to update status');
-    }
   });
 
   const assignMechanic = useMutation({
@@ -46,28 +68,67 @@ export const useBookingDetail = (id?: number) => {
   });
 
   const addPart = useMutation({
-    mutationFn: (data: { part_id: number, quantity: number }) => 
-      post(`/api/staff/bookings/${id}/add-part/`, data),
+    mutationFn: async (data: AddBookingPartPayload) => {
+      try {
+        return await post<ApiResponse<Booking>>(`/api/staff/bookings/${id}/add-part/`, data);
+      } catch (error) {
+        throw error as ApiErrorWithCode;
+      }
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['bookings', id] });
+      queryClient.invalidateQueries({ queryKey: ['bookings'] });
       toast.success('Part added to booking');
-    },
-    onError: (error: any) => {
-      toast.error(error.message || 'Failed to add part');
     }
   });
 
   const removePart = useMutation({
-    mutationFn: (booking_part_id: number) => 
-      post(`/api/staff/bookings/${id}/remove-part/`, { booking_part_id }),
+    mutationFn: async (bookingPartId: number) => {
+      try {
+        return await del<ApiResponse<Booking>>(`/api/staff/bookings/${id}/remove-part/${bookingPartId}/`);
+      } catch (error) {
+        throw error as ApiErrorWithCode;
+      }
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['bookings', id] });
+      queryClient.invalidateQueries({ queryKey: ['bookings'] });
       toast.success('Part removed');
-    },
-    onError: (error: any) => {
-      toast.error(error.message || 'Failed to remove part');
     }
   });
+
+  const approvePart = useMutation({
+    mutationFn: async (bookingPartId: number) => {
+      try {
+        return await post<ApiResponse<BookingPart>>(`/api/staff/bookings/${id}/approve-part/${bookingPartId}/`);
+      } catch (error) {
+        throw error as ApiErrorWithCode;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['bookings', id] });
+      queryClient.invalidateQueries({ queryKey: ['bookings'] });
+      toast.success('Part approved');
+    },
+  });
+
+  const rejectPart = useMutation({
+    mutationFn: async (bookingPartId: number) => {
+      try {
+        return await post<ApiResponse<BookingPart>>(`/api/staff/bookings/${id}/reject-part/${bookingPartId}/`);
+      } catch (error) {
+        throw error as ApiErrorWithCode;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['bookings', id] });
+      queryClient.invalidateQueries({ queryKey: ['bookings'] });
+      toast.success('Part rejected');
+    },
+  });
+
+  // TODO: add-service endpoint support is not available in the current backend.
+  // If /api/staff/bookings/{id}/add-service/ is implemented, add addService() here.
 
   const updateBooking = useMutation({
     mutationFn: (data: Partial<Booking>) => 
@@ -87,6 +148,8 @@ export const useBookingDetail = (id?: number) => {
     assignMechanic,
     addPart,
     removePart,
+    approvePart,
+    rejectPart,
     updateBooking
   };
 };

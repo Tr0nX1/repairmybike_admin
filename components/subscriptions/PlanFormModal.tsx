@@ -29,9 +29,11 @@ import {
   SelectValue 
 } from '@/components/ui/select';
 import { usePlans, Plan } from '@/hooks/usePlans';
-import { Loader2, Zap } from 'lucide-react';
+import { useServices } from '@/hooks/useServices';
+import { Loader2, Zap, Plus, X, Check } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
+import { useState, useEffect } from 'react';
 
 const planSchema = z.object({
   name: z.string().min(3, 'Name is required'),
@@ -39,6 +41,7 @@ const planSchema = z.object({
   billing_period: z.string().min(1, 'Required'),
   included_visits: z.number().int().min(0),
   tier: z.string().min(1, 'Required'),
+  included_services: z.array(z.number()).optional(),
   active: z.boolean(),
   description: z.string().optional(),
 });
@@ -50,8 +53,14 @@ interface PlanFormModalProps {
 }
 
 export const PlanFormModal = ({ open, onOpenChange, initialData }: PlanFormModalProps) => {
-  const { createPlan, updatePlan } = usePlans();
+  const { createPlan, updatePlan, addBenefit, removeBenefit, updateBenefit } = usePlans();
+  const { data: serviceResults } = useServices({}, 1);
   const isEditing = !!initialData;
+  const [newBenefit, setNewBenefit] = useState('');
+  const [selectedServices, setSelectedServices] = useState<number[]>(initialData?.included_services || []);
+  const [benefits, setBenefits] = useState(initialData?.benefits_list || []);
+  const [benefitEdits, setBenefitEdits] = useState<Record<number, string>>({});
+  const [benefitActive, setBenefitActive] = useState<Record<number, boolean>>({});
 
   const form = useForm<z.infer<typeof planSchema>>({
     resolver: zodResolver(planSchema),
@@ -66,12 +75,91 @@ export const PlanFormModal = ({ open, onOpenChange, initialData }: PlanFormModal
     },
   });
 
+  useEffect(() => {
+    setSelectedServices(initialData?.included_services ?? []);
+    setBenefits(initialData?.benefits_list ?? []);
+    setBenefitEdits(
+      (initialData?.benefits_list || []).reduce((acc, benefit) => {
+        acc[benefit.id] = benefit.text;
+        return acc;
+      }, {} as Record<number, string>)
+    );
+    setBenefitActive(
+      (initialData?.benefits_list || []).reduce((acc, benefit) => {
+        acc[benefit.id] = benefit.is_active;
+        return acc;
+      }, {} as Record<number, boolean>)
+    );
+
+    form.reset({
+      name: initialData?.name || '',
+      price: initialData?.price || '0.00',
+      billing_period: initialData?.billing_period || 'monthly',
+      included_visits: initialData?.included_visits || 0,
+      tier: initialData?.tier || 'silver',
+      active: initialData?.active ?? true,
+      description: initialData?.description || '',
+      included_services: initialData?.included_services || [],
+    });
+  }, [initialData, form]);
+
+  const handleAddBenefit = async () => {
+    if (!initialData?.id || !newBenefit.trim()) return;
+    try {
+      const benefit = await addBenefit.mutateAsync({ planId: initialData.id, text: newBenefit.trim() });
+      if (benefit) {
+        setBenefits((prev) => [...(prev || []), benefit]);
+        setBenefitEdits((prev) => ({ ...prev, [benefit.id]: benefit.text }));
+        setBenefitActive((prev) => ({ ...prev, [benefit.id]: benefit.is_active }));
+      }
+      setNewBenefit('');
+    } catch (e) {}
+  };
+
+  const handleRemoveBenefit = async (benefitId: number) => {
+    if (!initialData?.id) return;
+    try {
+      await removeBenefit.mutateAsync({ planId: initialData.id, benefitId });
+      setBenefits((prev) => (prev || []).filter((item) => item.id !== benefitId));
+      setBenefitEdits((prev) => {
+        const next = { ...prev };
+        delete next[benefitId];
+        return next;
+      });
+      setBenefitActive((prev) => {
+        const next = { ...prev };
+        delete next[benefitId];
+        return next;
+      });
+    } catch (e) {}
+  };
+
+  const handleUpdateBenefit = async (benefitId: number) => {
+    if (!initialData?.id) return;
+    const text = benefitEdits[benefitId]?.trim();
+    const is_active = benefitActive[benefitId];
+    if (text === undefined || text.length === 0) return;
+
+    try {
+      const updated = await updateBenefit.mutateAsync({
+        planId: initialData.id,
+        benefitId,
+        text,
+        is_active,
+      });
+      if (updated) {
+        setBenefits((prev) => (prev || []).map((item) => item.id === benefitId ? updated : item));
+      }
+    } catch (e) {}
+  };
+
   const onSubmit = async (values: z.infer<typeof planSchema>) => {
     try {
+      const payload = { ...values, included_services: selectedServices };
       if (isEditing) {
-        await updatePlan.mutateAsync({ id: initialData.id, ...values });
+        await updatePlan.mutateAsync({ id: initialData.id, ...payload });
       } else {
-        await createPlan.mutateAsync(values);
+        await createPlan.mutateAsync(payload);
       }
       onOpenChange(false);
       form.reset();
@@ -184,6 +272,40 @@ export const PlanFormModal = ({ open, onOpenChange, initialData }: PlanFormModal
               />
             </div>
 
+            <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Included Services</span>
+                <span className="text-[10px] font-semibold text-slate-600">{selectedServices.length} selected</span>
+              </div>
+              <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto pt-2">
+                {(serviceResults?.data || []).map((service) => {
+                  const selected = selectedServices.includes(service.id);
+                  return (
+                    <button
+                      type="button"
+                      key={service.id}
+                      className={`rounded-lg border px-3 py-2 text-left text-xs ${selected ? 'border-blue-500 bg-blue-50' : 'border-slate-200 bg-white'}`}
+                      onClick={() => {
+                        setSelectedServices((prev) =>
+                          prev.includes(service.id)
+                            ? prev.filter((id) => id !== service.id)
+                            : [...prev, service.id]
+                        );
+                      }}
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <span>{service.name}</span>
+                        <span className="text-[10px] text-slate-500">Service</span>
+                      </div>
+                    </button>
+                  );
+                })}
+                {!serviceResults?.data?.length && (
+                  <div className="text-[10px] text-slate-500">No services loaded yet.</div>
+                )}
+              </div>
+            </div>
+
             <FormField
               control={form.control}
               name="description"
@@ -194,6 +316,77 @@ export const PlanFormModal = ({ open, onOpenChange, initialData }: PlanFormModal
                 </FormItem>
               )}
             />
+
+            {isEditing && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <FormLabel className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Plan Benefits</FormLabel>
+                  <span className="text-[10px] font-semibold text-slate-600">{benefits.length} benefits</span>
+                </div>
+                <div className="space-y-3">
+                  {benefits.map((benefit) => (
+                    <div key={benefit.id} className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+                      <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+                        <div className="space-y-2">
+                          <Input
+                            value={benefitEdits[benefit.id] ?? benefit.text}
+                            onChange={(e) => setBenefitEdits((prev) => ({ ...prev, [benefit.id]: e.target.value }))}
+                            className="h-10 text-xs"
+                          />
+                          <div className="flex items-center gap-3 text-[10px] text-slate-500">
+                            <Checkbox
+                              checked={benefitActive[benefit.id] ?? benefit.is_active}
+                              onCheckedChange={(value) => setBenefitActive((prev) => ({ ...prev, [benefit.id]: Boolean(value) }))}
+                            />
+                            <span>{benefitActive[benefit.id] ?? benefit.is_active ? 'Active' : 'Inactive'}</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-end gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-9 text-xs"
+                            onClick={() => handleUpdateBenefit(benefit.id)}
+                            disabled={updateBenefit.isPending}
+                          >
+                            Save
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-9 text-xs text-red-600"
+                            onClick={() => handleRemoveBenefit(benefit.id)}
+                            disabled={removeBenefit.isPending}
+                          >
+                            Delete
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <Input 
+                    placeholder="Add a benefit..." 
+                    value={newBenefit} 
+                    onChange={(e) => setNewBenefit(e.target.value)}
+                    className="h-9 text-xs"
+                    onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddBenefit())}
+                  />
+                  <Button 
+                    type="button" 
+                    size="sm" 
+                    className="h-9 bg-purple-600 hover:bg-purple-700"
+                    onClick={handleAddBenefit}
+                    disabled={addBenefit.isPending || !newBenefit.trim()}
+                  >
+                    {addBenefit.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-4 w-4" />}
+                  </Button>
+                </div>
+              </div>
+            )}
 
             <FormField
               control={form.control}

@@ -8,8 +8,8 @@ export const useBookingStats = () => {
   return useQuery<BookingStats>({
     queryKey: ['bookings', 'stats'],
     queryFn: async () => {
-      const response = await get<ApiResponse<BookingStats>>('/api/staff/bookings/stats/');
-      return response.data;
+      const response = await get<any>('/api/staff/bookings/stats/');
+      return response.data || response;
     },
     refetchInterval: 30_000,
   });

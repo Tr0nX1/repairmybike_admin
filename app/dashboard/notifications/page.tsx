@@ -116,11 +116,9 @@ export default function NotificationsPage() {
             </Button>
             
             <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-              <DialogTrigger>
-                <Button className="h-9 text-xs gap-1.5 bg-[#378ADD] hover:bg-[#2D6FA3]">
-                  <Send className="h-3.5 w-3.5" />
-                  Send Notification
-                </Button>
+              <DialogTrigger render={<Button className="h-9 text-xs gap-1.5 bg-[#378ADD] hover:bg-[#2D6FA3]" />}>
+                <Send className="h-3.5 w-3.5" />
+                Send Notification
               </DialogTrigger>
               <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>

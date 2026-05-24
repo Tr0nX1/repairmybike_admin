@@ -28,6 +28,8 @@ import {
 } from 'recharts';
 import { Download, Calendar, Filter, TrendingUp, Users, Package, Banknote } from 'lucide-react';
 import { format, subDays, startOfMonth, endOfMonth } from 'date-fns';
+import { useRouter } from 'next/navigation';
+import { useReports } from '@/hooks/useReports';
 
 // Sample data - In a real app, this would come from API hooks
 const revenueData = [
@@ -56,14 +58,16 @@ const topPartsData = [
 ];
 
 const mechanicPerformance = [
-  { name: 'Rahul S.', jobs: 42, rating: 4.8, revenue: 24500 },
-  { name: 'Amit K.', jobs: 38, rating: 4.6, revenue: 21200 },
-  { name: 'Vikram P.', jobs: 35, rating: 4.9, revenue: 19800 },
-  { name: 'Suresh M.', jobs: 28, rating: 4.5, revenue: 15600 },
+  { id: 1, name: 'Rahul S.', jobs: 42, rating: 4.8, revenue: 24500 },
+  { id: 2, name: 'Amit K.', jobs: 38, rating: 4.6, revenue: 21200 },
+  { id: 3, name: 'Vikram P.', jobs: 35, rating: 4.9, revenue: 19800 },
+  { id: 4, name: 'Suresh M.', jobs: 28, rating: 4.5, revenue: 15600 },
 ];
 
 export default function ReportsPage() {
-  const [dateRange, setFilters] = useState('week');
+  const router = useRouter();
+  const [dateRange, setDateRange] = useState<'7d' | '30d' | '90d'>('30d');
+  const { data: reportsData } = useReports({ range: dateRange });
 
   return (
     <div className="space-y-6">
@@ -72,13 +76,33 @@ export default function ReportsPage() {
         subtitle="Analyze revenue, booking trends and operational performance"
         actions={
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" className="h-9 text-xs gap-1.5 bg-white">
-              <Calendar className="h-3.5 w-3.5" />
-              {dateRange === 'week' ? 'Last 7 Days' : 'Last 30 Days'}
+            <Button 
+              variant={dateRange === '7d' ? 'default' : 'outline'} 
+              size="sm" 
+              className="h-9 text-xs gap-1.5 bg-white"
+              onClick={() => setDateRange('7d')}
+            >
+              Last 7 Days
             </Button>
-            <Button variant="outline" size="sm" className="h-9 text-xs gap-1.5 bg-white">
+            <Button 
+              variant={dateRange === '30d' ? 'default' : 'outline'} 
+              size="sm" 
+              className="h-9 text-xs gap-1.5 bg-white"
+              onClick={() => setDateRange('30d')}
+            >
+              Last 30 Days
+            </Button>
+            <Button 
+              variant={dateRange === '90d' ? 'default' : 'outline'} 
+              size="sm" 
+              className="h-9 text-xs gap-1.5 bg-white"
+              onClick={() => setDateRange('90d')}
+            >
+              Last 90 Days
+            </Button>
+            <Button variant="outline" size="sm" className="h-9 text-xs gap-1.5 bg-white" disabled title="Coming in v2">
               <Download className="h-3.5 w-3.5" />
-              Export PDF
+              Export PDF (Coming in v2)
             </Button>
           </div>
         }
@@ -283,7 +307,14 @@ export default function ReportsPage() {
                     <span className="text-muted-foreground font-medium uppercase text-[10px] tracking-tight">Revenue</span>
                     <span className="font-black text-[#378ADD]">₹{mech.revenue.toLocaleString()}</span>
                   </div>
-                  <Button variant="outline" className="w-full h-8 text-[10px] font-bold uppercase tracking-wider" size="sm">View History</Button>
+                  <Button 
+                    variant="outline" 
+                    className="w-full h-8 text-[10px] font-bold uppercase tracking-wider" 
+                    size="sm"
+                    onClick={() => router.push(`/dashboard/bookings?mechanic_id=${mech.id}`)}
+                  >
+                    View History
+                  </Button>
                 </CardContent>
               </Card>
             ))}

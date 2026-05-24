@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { useOrders } from '@/hooks/useOrders';
 import { 
@@ -11,38 +12,29 @@ import {
   TableHeader, 
   TableRow 
 } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Loader2, ShoppingCart, Eye, Package, AlertCircle, RefreshCw } from 'lucide-react';
+import { Loader2, ShoppingCart, Eye, AlertCircle, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useQueryClient } from '@tanstack/react-query';
+import { ORDER_STATUS, type OrderStatus } from '@/types/enums';
+import { StatusBadge } from '@/components/ui/StatusBadge';
 
 export default function OrdersPage() {
-  const [activeFilter, setActiveStatus] = useState('all');
+  const [activeFilter, setActiveStatus] = useState<'all' | OrderStatus>('all');
   const queryClient = useQueryClient();
-  const { data: ordersData, isLoading, error } = useOrders();
+  const router = useRouter();
+  const { data: ordersData, isLoading, error } = useOrders({
+    status: activeFilter === 'all' ? undefined : activeFilter,
+  });
   const orders = ordersData?.data || [];
-
-  const getStatusStyle = (status: string) => {
-    switch (status.toLowerCase()) {
-      case 'fulfilled':
-      case 'completed':
-        return 'bg-green-100 text-green-700';
-      case 'confirmed':
-        return 'bg-blue-100 text-blue-700';
-      case 'cancelled':
-        return 'bg-red-100 text-red-700';
-      default:
-        return 'bg-slate-100 text-slate-700';
-    }
-  };
 
   const filters = [
     { label: 'All Orders', value: 'all' },
-    { label: 'Pending', value: 'pending' },
-    { label: 'Fulfilled', value: 'fulfilled' },
-    { label: 'Cancelled', value: 'cancelled' },
-  ];
+    { label: 'Created', value: ORDER_STATUS.CREATED },
+    { label: 'Confirmed', value: ORDER_STATUS.CONFIRMED },
+    { label: 'Fulfilled', value: ORDER_STATUS.FULFILLED },
+    { label: 'Cancelled', value: ORDER_STATUS.CANCELLED },
+  ] as const;
 
   if (error) {
     return (
@@ -99,19 +91,20 @@ export default function OrdersPage() {
               <TableHead className="text-[10px] font-bold uppercase">Items</TableHead>
               <TableHead className="text-[10px] font-bold uppercase text-right">Total</TableHead>
               <TableHead className="text-[10px] font-bold uppercase">Status</TableHead>
+              <TableHead className="text-[10px] font-bold uppercase">Payment</TableHead>
               <TableHead className="text-[10px] font-bold uppercase text-right px-4">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={6} className="h-32 text-center">
+                <TableCell colSpan={7} className="h-32 text-center">
                   <div className="flex justify-center"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
                 </TableCell>
               </TableRow>
             ) : orders.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="h-48 text-center">
+                <TableCell colSpan={7} className="h-48 text-center">
                   <div className="flex flex-col items-center opacity-40">
                     <ShoppingCart className="h-10 w-10 mb-2" />
                     <p className="text-xs font-bold uppercase tracking-widest">No spare part orders found</p>
@@ -119,8 +112,12 @@ export default function OrdersPage() {
                 </TableCell>
               </TableRow>
             ) : (
-              orders.map((order: any) => (
-                <TableRow key={order.id} className="hover:bg-slate-50 transition-colors group">
+              orders.map((order) => (
+                <TableRow
+                  key={order.id}
+                  className="hover:bg-slate-50 transition-colors group cursor-pointer"
+                  onClick={() => router.push(`/dashboard/orders/${order.id}`)}
+                >
                   <TableCell className="text-xs font-bold text-[#378ADD] px-4">#{order.id}</TableCell>
                   <TableCell>
                     <div className="flex flex-col">
@@ -129,19 +126,46 @@ export default function OrdersPage() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <div className="flex items-center gap-1.5 text-xs font-medium">
-                      <Package className="h-3.5 w-3.5 text-muted-foreground" />
-                      {order.items?.length || 0} items
+                    <div className="flex flex-col gap-1">
+                      {order.items?.slice(0, 2).map((item: any) => (
+                        <div key={item.id} className="flex items-center gap-1">
+                          <span className="text-xs font-bold text-slate-700 line-clamp-1">
+                            {item.part_name}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground font-bold">
+                            ×{item.quantity}
+                          </span>
+                        </div>
+                      ))}
+                      {order.items && order.items.length > 2 && (
+                        <span className="text-[10px] text-muted-foreground font-medium">
+                          +{order.items.length - 2} more
+                        </span>
+                      )}
+                      {(!order.items || order.items.length === 0) && (
+                        <span className="text-[10px] text-muted-foreground font-medium">
+                          No items
+                        </span>
+                      )}
                     </div>
                   </TableCell>
                   <TableCell className="text-xs font-bold text-right">₹{parseFloat(order.amount_total).toLocaleString()}</TableCell>
                   <TableCell>
-                    <Badge variant="secondary" className={cn("text-[9px] font-bold uppercase", getStatusStyle(order.status))}>
-                      {order.status}
-                    </Badge>
+                    <StatusBadge status={order.status} />
+                  </TableCell>
+                  <TableCell>
+                    <StatusBadge status={order.payment_status} type="payment" />
                   </TableCell>
                   <TableCell className="text-right px-4">
-                    <Button variant="ghost" size="icon" className="h-7 w-7 text-[#378ADD]">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-[#378ADD]"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        router.push(`/dashboard/orders/${order.id}`);
+                      }}
+                    >
                       <Eye className="h-3.5 w-3.5" />
                     </Button>
                   </TableCell>

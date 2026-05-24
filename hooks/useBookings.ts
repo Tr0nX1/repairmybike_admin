@@ -4,16 +4,18 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { get, post } from '@/lib/api-client';
 import { ApiResponse, PaginatedResponse } from '@/types/api';
 import { Booking } from '@/types/booking';
+import type { BookingPaymentMethod, BookingPaymentStatus, BookingStatus } from '@/types/enums';
 import { toast } from 'sonner';
 
 interface BookingFilters {
-  status?: string;
+  status?: BookingStatus;
   date?: string;
   search?: string;
   limit?: number;
   ordering?: string;
-  payment_method?: string;
-  payment_status?: string;
+  payment_method?: BookingPaymentMethod;
+  payment_status?: BookingPaymentStatus;
+  mechanic_id?: number | string;
 }
 
 export const useBookings = (filters: BookingFilters = {}, page: number = 1) => {

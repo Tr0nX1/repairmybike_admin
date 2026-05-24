@@ -8,9 +8,11 @@ import { useState } from 'react';
 import { ServiceDataGrid } from '@/components/services/ServiceDataGrid';
 import { PricingDataGrid } from '@/components/services/PricingDataGrid';
 import { ServiceFormModal } from '@/components/services/ServiceFormModal';
+import { ServiceCategoryModal } from '@/components/services/ServiceCategoryModal';
 
 export default function ServicesPage() {
   const [serviceModalOpen, setServiceModalOpen] = useState(false);
+  const [categoryModalOpen, setCategoryModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('catalog');
 
   return (
@@ -20,7 +22,7 @@ export default function ServicesPage() {
         subtitle="Manage available core services and vehicle-specific labor rates"
         actions={
           <div className="flex items-center gap-2">
-             <Button variant="outline" size="sm" className="h-9 text-xs gap-1.5 bg-white">
+             <Button variant="outline" size="sm" className="h-9 text-xs gap-1.5 bg-white" onClick={() => setCategoryModalOpen(true)}>
               <Layers className="h-3.5 w-3.5" />
               Manage Categories
             </Button>
@@ -57,6 +59,11 @@ export default function ServicesPage() {
       <ServiceFormModal 
         open={serviceModalOpen} 
         onOpenChange={setServiceModalOpen} 
+      />
+
+      <ServiceCategoryModal 
+        open={categoryModalOpen} 
+        onOpenChange={setCategoryModalOpen} 
       />
     </div>
   );

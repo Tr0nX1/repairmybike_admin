@@ -18,27 +18,26 @@ import {
   Calendar, 
   MapPin, 
   FileText, 
-  Plus, 
-  Trash2, 
   Clock,
-  Wrench,
   UserPlus,
   Copy,
   CheckCircle2,
   Bike,
   Info,
   Banknote,
-  Navigation,
   ExternalLink
 } from 'lucide-react';
 import { format } from 'date-fns';
-import { PartSelector } from '@/components/bookings/PartSelector';
 import { UpdateStatusModal } from '@/components/bookings/UpdateStatusModal';
 import { AssignMechanicModal } from '@/components/bookings/AssignMechanicModal';
+import { BookingServicesPanel } from '@/components/bookings/BookingServicesPanel';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { CustomerDetailPanel } from '@/components/customers/CustomerDetailPanel';
+import { isTerminalBookingStatus } from '@/lib/booking-transitions';
+import { BookingPartsPanel } from '@/components/bookings/BookingPartsPanel';
+import { usePaymentCollection } from '@/hooks/usePaymentCollection';
 
 export default function BookingDetailPage() {
   const { id } = useParams();
@@ -47,10 +46,11 @@ export default function BookingDetailPage() {
   const { 
     data: booking, 
     isLoading, 
-    removePart, 
     refetch, 
     updateBooking 
   } = useBookingDetail(bookingId);
+
+  const { collectPayment } = usePaymentCollection();
   const { data: logs } = useLogs({ booking_id: bookingId });
 
   const [statusModalOpen, setStatusModalOpen] = useState(false);
@@ -118,7 +118,13 @@ export default function BookingDetailPage() {
         badge={{ label: booking.booking_status }}
         actions={
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" className="h-9 text-xs gap-1.5" onClick={() => setStatusModalOpen(true)}>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-9 text-xs gap-1.5"
+              disabled={isTerminalBookingStatus(booking.booking_status)}
+              onClick={() => setStatusModalOpen(true)}
+            >
               Update Status
             </Button>
             <Button className="h-9 text-xs gap-1.5 bg-[#378ADD] hover:bg-[#2D6FA3]" onClick={() => setAssignModalOpen(true)}>
@@ -228,106 +234,21 @@ export default function BookingDetailPage() {
           </div>
 
           {/* Services & Location */}
-          <Card className="border-[0.5px] shadow-sm">
-            <CardHeader className="pb-3 border-b flex flex-row items-center justify-between">
-              <CardTitle className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                <Wrench className="h-3 w-3" /> Service Items
-              </CardTitle>
-              <div className="flex items-center gap-2 text-[10px] font-bold uppercase text-[#378ADD]">
-                <Navigation className="h-3 w-3" /> 
-                {booking.service_location === 'home' ? 'Home Service' : 'Visit Shop'}
-              </div>
-            </CardHeader>
-            <CardContent className="pt-0 px-0">
-              <table className="w-full text-xs text-left">
-                <tbody className="divide-y">
-                  {booking.booking_services.map(s => (
-                    <tr key={s.id}>
-                      <td className="px-6 py-4">
-                        <div className="flex flex-col">
-                          <span className="font-bold">{s.service_name || s.service}</span>
-                          <span className="text-[10px] text-muted-foreground uppercase tracking-tight">{s.category_name || 'Service'}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-right font-bold">₹{parseFloat(s.price).toLocaleString()}</td>
-                    </tr>
-                  ))}
-                  {booking.subscription_name && (
-                    <tr className="bg-green-50/50">
-                      <td className="px-6 py-3">
-                        <div className="flex items-center gap-2">
-                          <Badge className="bg-green-600 h-5 text-[9px] font-bold">SUBSCRIPTION</Badge>
-                          <span className="text-xs font-bold text-green-700">{booking.subscription_name}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-3 text-right font-bold text-green-700">-₹{booking.booking_services.reduce((sum, s) => sum + parseFloat(s.price), 0).toLocaleString()}</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </CardContent>
-          </Card>
+          <BookingServicesPanel
+            bookingId={booking.id}
+            bookingServices={booking.booking_services}
+            bookingStatus={booking.booking_status}
+            vehicleModelId={booking.vehicle_model}
+          />
 
           {/* Parts */}
           <Card className="border-[0.5px] shadow-sm">
-            <CardHeader className="pb-3 border-b flex flex-row items-center justify-between space-y-0">
-              <CardTitle className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                <Plus className="h-3 w-3" /> Spare Parts
-              </CardTitle>
-              <Badge variant="outline" className="h-5 text-[9px] font-bold uppercase bg-slate-50">{booking.booking_parts.length} Items</Badge>
-            </CardHeader>
-            <CardContent className="pt-0 px-0">
-              {booking.booking_parts.length === 0 ? (
-                <div className="p-8 text-center text-[10px] font-bold uppercase tracking-widest text-muted-foreground opacity-40">No parts added to this job</div>
-              ) : (
-                <table className="w-full text-xs text-left">
-                  <thead className="bg-slate-50/50 border-b">
-                    <tr>
-                      <th className="px-6 py-2 text-[10px] font-bold uppercase text-muted-foreground">Part Name</th>
-                      <th className="px-4 py-2 text-[10px] font-bold uppercase text-muted-foreground text-center">Status</th>
-                      <th className="px-6 py-2 text-[10px] font-bold uppercase text-muted-foreground text-right">Amount</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y">
-                    {booking.booking_parts.map(p => (
-                      <tr key={p.id} className="group hover:bg-slate-50/30 transition-colors">
-                        <td className="px-6 py-4">
-                          <div className="flex flex-col">
-                            <span className="font-bold">{p.part_name}</span>
-                            <span className="text-[10px] text-muted-foreground font-medium">Qty: {p.quantity} × ₹{parseFloat(p.unit_price).toLocaleString()}</span>
-                          </div>
-                        </td>
-                        <td className="px-4 py-4 text-center">
-                          <div className="flex flex-col items-center gap-1">
-                            <Badge variant={p.approval_status === 'approved' ? 'default' : p.approval_status === 'rejected' ? 'destructive' : 'secondary'} className="h-5 text-[9px] font-bold uppercase">
-                              {p.approval_status}
-                            </Badge>
-                            {p.approved_by_name && (
-                              <span className="text-[8px] text-muted-foreground uppercase font-bold tracking-tighter">By {p.approved_by_name}</span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <div className="flex items-center justify-end gap-3">
-                            <span className="font-bold">₹{(p.quantity * parseFloat(p.unit_price)).toLocaleString()}</span>
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              className="h-6 w-6 text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                              onClick={() => removePart.mutate(p.id)}
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-              <div className="p-4 bg-slate-50/50 border-t">
-                <PartSelector bookingId={booking.id} />
-              </div>
+            <CardContent className="p-6">
+              <BookingPartsPanel
+                bookingId={booking.id}
+                bookingStatus={booking.booking_status}
+                parts={booking.booking_parts}
+              />
             </CardContent>
           </Card>
 
@@ -420,8 +341,20 @@ export default function BookingDetailPage() {
               </div>
               
               {booking.payment_status === 'pending' && (
-                <Button className="w-full h-11 bg-green-600 hover:bg-green-700 text-white font-bold uppercase tracking-widest text-[11px] mt-4 shadow-lg shadow-green-900/20">
-                  <Banknote className="h-4 w-4 mr-2" /> Collect Cash Payment
+                <Button 
+                  className="w-full h-11 bg-green-600 hover:bg-green-700 text-white font-bold uppercase tracking-widest text-[11px] mt-4 shadow-lg shadow-green-900/20"
+                  onClick={() => collectPayment.mutate({
+                    booking_id: bookingId,
+                    amount: parseFloat(booking.total_amount)
+                  })}
+                  disabled={collectPayment.isPending}
+                >
+                  {collectPayment.isPending ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Banknote className="h-4 w-4 mr-2" />
+                  )}
+                  Collect Cash Payment
                 </Button>
               )}
             </CardContent>

@@ -5,6 +5,12 @@ import { get, post, patch, del } from '@/lib/api-client';
 import { ApiResponse, PaginatedResponse } from '@/types/api';
 import { toast } from 'sonner';
 
+export interface Benefit {
+  id: number;
+  text: string;
+  is_active: boolean;
+}
+
 export interface Plan {
   id: number;
   name: string;
@@ -16,6 +22,8 @@ export interface Plan {
   active: boolean;
   description: string;
   tier: string;
+  included_services?: number[];
+  benefits_list?: Benefit[];
 }
 
 export const usePlans = (page: number = 1) => {
@@ -64,10 +72,43 @@ export const usePlans = (page: number = 1) => {
     onError: (err: any) => toast.error(err.message || 'Failed to delete plan')
   });
 
+  const addBenefit = useMutation({
+    mutationFn: ({ planId, text }: { planId: number, text: string }) => 
+      post<Benefit>(`/api/subscriptions/plans/${planId}/benefits/`, { text }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['plans'] });
+      toast.success('Benefit added');
+    },
+    onError: (err: any) => toast.error(err.message || 'Failed to add benefit')
+  });
+
+  const removeBenefit = useMutation({
+    mutationFn: ({ planId, benefitId }: { planId: number, benefitId: number }) => 
+      del(`/api/subscriptions/plans/${planId}/benefits/${benefitId}/`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['plans'] });
+      toast.success('Benefit removed');
+    },
+    onError: (err: any) => toast.error(err.message || 'Failed to remove benefit')
+  });
+
+  const updateBenefit = useMutation({
+    mutationFn: ({ planId, benefitId, text, is_active }: { planId: number, benefitId: number, text?: string, is_active?: boolean }) => 
+      patch<Benefit>(`/api/subscriptions/plans/${planId}/benefits/${benefitId}/`, { text, is_active }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['plans'] });
+      toast.success('Benefit updated');
+    },
+    onError: (err: any) => toast.error(err.message || 'Failed to update benefit')
+  });
+
   return {
     ...query,
     createPlan,
     updatePlan,
-    deletePlan
+    deletePlan,
+    addBenefit,
+    removeBenefit,
+    updateBenefit
   };
 };

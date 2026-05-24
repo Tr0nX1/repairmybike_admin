@@ -6,9 +6,9 @@ import { useBookingDetail } from '@/hooks/useBookingDetail';
 import { useDebounce } from '@/hooks/useDebounce';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, Plus, Loader2, Package, AlertTriangle } from 'lucide-react';
+import { Search, Plus, Loader2, Package } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Badge } from '@/components/ui/badge';
+import { toast } from 'sonner';
 
 interface PartSelectorProps {
   bookingId: number;
@@ -21,7 +21,7 @@ export const PartSelector = ({ bookingId, onPartAdded }: PartSelectorProps) => {
   const [selectedPartId, setSelectedPartId] = useState<number | null>(null);
   const debouncedSearch = useDebounce(search, 300);
 
-  const { data: partsData, isLoading: isLoadingParts } = useParts({ q: debouncedSearch });
+  const { data: partsData, isLoading: isLoadingParts } = useParts({ q: debouncedSearch, in_stock: 'true' });
   const { addPart } = useBookingDetail(bookingId);
 
   const parts = partsData?.data || [];
@@ -31,13 +31,14 @@ export const PartSelector = ({ bookingId, onPartAdded }: PartSelectorProps) => {
     if (!selectedPartId) return;
 
     try {
-      await addPart.mutateAsync({ part_id: selectedPartId, quantity });
+      await addPart.mutateAsync({ spare_part_id: selectedPartId, quantity });
       setSearch('');
       setSelectedPartId(null);
       setQuantity(1);
       onPartAdded?.();
     } catch (e) {
-      // Error handled by mutation
+      const code = (e as { code?: string }).code;
+      toast.error(code === 'BOOKING_TERMINAL' ? 'Completed or cancelled bookings cannot be changed' : (e as Error).message || 'Failed to add part');
     }
   };
 
@@ -68,7 +69,7 @@ export const PartSelector = ({ bookingId, onPartAdded }: PartSelectorProps) => {
                 key={part.id} 
                 className={cn(
                   "flex items-center justify-between p-3 cursor-pointer hover:bg-slate-50 transition-colors",
-                  part.stock_qty <= 0 && "opacity-50 grayscale pointer-events-none"
+                  (!part.in_stock || part.stock_qty <= 0) && "opacity-50 grayscale pointer-events-none"
                 )}
                 onClick={() => setSelectedPartId(part.id)}
               >

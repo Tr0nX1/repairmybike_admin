@@ -22,6 +22,9 @@ import {
   SelectTrigger, 
   SelectValue 
 } from '@/components/ui/select';
+import { ImageUpload } from '@/components/ui/ImageUpload';
+import { StockBadge } from '@/components/ui/StockBadge';
+import { useParts, useCategories } from '@/hooks/useParts';
 
 interface NewPartFormProps {
   open: boolean;
@@ -30,6 +33,8 @@ interface NewPartFormProps {
 
 export const NewPartForm = ({ open, onOpenChange }: NewPartFormProps) => {
   const queryClient = useQueryClient();
+  const { uploadThumbnail } = useParts();
+  
   const [formData, setFormData] = useState({
     name: '',
     sku: '',
@@ -40,23 +45,41 @@ export const NewPartForm = ({ open, onOpenChange }: NewPartFormProps) => {
     stock_qty: '0'
   });
 
-  const { data: categories } = useQuery<any[]>({
-    queryKey: ['parts', 'categories'],
-    queryFn: () => get<any[]>('/api/spare-parts/categories/'),
-  });
+  const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
+  const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
+
+  const { data: categories } = useCategories();
 
   const createPart = useMutation({
-    mutationFn: (data: any) => post('/api/spare-parts/parts/', data),
-    onSuccess: () => {
+    mutationFn: (data: any) => post<{ data: { id: number } }>('/api/spare-parts/parts/', data),
+    onSuccess: async (response) => {
+      // If thumbnail selected, upload it
+      if (thumbnailFile) {
+        try {
+          await uploadThumbnail.mutateAsync({ 
+            id: response.data.id, 
+            file: thumbnailFile 
+          });
+        } catch (e) {
+          console.error("Thumbnail upload failed", e);
+        }
+      }
+      
       queryClient.invalidateQueries({ queryKey: ['parts'] });
       toast.success('New part added to inventory');
       onOpenChange(false);
-      setFormData({ name: '', sku: '', category: '', brand: '', mrp: '', sale_price: '', stock_qty: '0' });
+      resetForm();
     },
     onError: (error: any) => {
       toast.error(error.message || 'Failed to create part');
     }
   });
+
+  const resetForm = () => {
+    setFormData({ name: '', sku: '', category: '', brand: '', mrp: '', sale_price: '', stock_qty: '0' });
+    setThumbnailFile(null);
+    setThumbnailPreview(null);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -164,13 +187,37 @@ export const NewPartForm = ({ open, onOpenChange }: NewPartFormProps) => {
           </div>
 
           <div className="space-y-2">
-            <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Initial Stock Quantity</label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Initial Stock Quantity</label>
+              <StockBadge stock_qty={parseInt(formData.stock_qty || '0')} />
+            </div>
             <Input 
               required 
               type="number" 
+              min={0}
               className="text-xs"
               value={formData.stock_qty}
               onChange={e => setFormData({...formData, stock_qty: e.target.value})}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+              Part Image (Thumbnail)
+            </label>
+            <ImageUpload
+              value={thumbnailPreview ?? undefined}
+              onChange={(file) => {
+                setThumbnailFile(file);
+                setThumbnailPreview(URL.createObjectURL(file));
+              }}
+              onClear={() => {
+                setThumbnailFile(null);
+                setThumbnailPreview(null);
+              }}
+              aspectRatio="1:1"
+              label="Upload part image"
+              maxSizeMB={5}
             />
           </div>
 
@@ -179,16 +226,19 @@ export const NewPartForm = ({ open, onOpenChange }: NewPartFormProps) => {
               type="button" 
               variant="ghost" 
               className="text-xs"
-              onClick={() => onOpenChange(false)}
+              onClick={() => {
+                resetForm();
+                onOpenChange(false);
+              }}
             >
               Cancel
             </Button>
             <Button 
               type="submit" 
               className="bg-[#378ADD] hover:bg-[#2D6FA3] text-white text-xs"
-              disabled={createPart.isPending}
+              disabled={createPart.isPending || uploadThumbnail.isPending}
             >
-              {createPart.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              {createPart.isPending || uploadThumbnail.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               Create Part
             </Button>
           </SheetFooter>

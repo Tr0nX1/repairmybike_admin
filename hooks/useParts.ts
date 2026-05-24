@@ -35,8 +35,10 @@ export const useParts = (filters: any = {}, page: number = 1) => {
   });
 
   const updatePart = useMutation({
-    mutationFn: ({ id, ...data }: Partial<SparePart> & { id: number }) => 
-      patch<ApiResponse<SparePart>>(`/api/spare-parts/parts/${id}/`, data),
+    mutationFn: ({ id, data }: { id: number; data: Partial<SparePart> | FormData }) => 
+      patch<ApiResponse<SparePart>>(`/api/spare-parts/parts/${id}/`, data, {
+        headers: data instanceof FormData ? { 'Content-Type': 'multipart/form-data' } : {}
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['parts'] });
       toast.success('Part updated successfully');
@@ -55,11 +57,56 @@ export const useParts = (filters: any = {}, page: number = 1) => {
     onError: (err: any) => toast.error(err.message || 'Failed to delete part')
   });
 
+  const uploadThumbnail = useMutation({
+    mutationFn: ({ id, file }: { id: number; file: File }) => {
+      const formData = new FormData();
+      formData.append('thumbnail', file);
+      return patch<ApiResponse<SparePart>>(`/api/spare-parts/parts/${id}/`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['parts'] });
+      toast.success('Thumbnail updated');
+    },
+    onError: (err: any) => toast.error(err.message || 'Failed to upload thumbnail')
+  });
+
+  const uploadGalleryImage = useMutation({
+    mutationFn: ({ id, file, altText = '' }: { id: number; file: File, altText?: string }) => {
+      const formData = new FormData();
+      formData.append('image', file);
+      formData.append('is_primary', 'false');
+      formData.append('alt_text', altText);
+      return post<ApiResponse<any>>(`/api/spare-parts/parts/${id}/upload-image/`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['parts'] });
+      toast.success('Image added to gallery');
+    },
+    onError: (err: any) => toast.error(err.message || 'Failed to upload image')
+  });
+
+  const deleteGalleryImage = useMutation({
+    mutationFn: ({ partId, imageId }: { partId: number; imageId: number }) => 
+      del(`/api/spare-parts/parts/${partId}/images/${imageId}/`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['parts'] });
+      toast.success('Image removed from gallery');
+    },
+    onError: (err: any) => toast.error(err.message || 'Failed to remove image')
+  });
+
   return {
     ...query,
     createPart,
     updatePart,
-    deletePart
+    deletePart,
+    uploadThumbnail,
+    uploadGalleryImage,
+    deleteGalleryImage
   };
 };
 
@@ -69,6 +116,9 @@ export function useCategories() {
     queryKey: ['part-categories'],
     queryFn: async () => {
       const res = await get<any>('/api/spare-parts/categories/');
+      if (res && (res as any).results !== undefined) {
+        return (res as any).results;
+      }
       return (res.data || res) as any[];
     },
   });
@@ -113,6 +163,9 @@ export function useBrands() {
     queryKey: ['part-brands'],
     queryFn: async () => {
       const res = await get<any>('/api/spare-parts/brands/');
+      if (res && (res as any).results !== undefined) {
+        return (res as any).results;
+      }
       return (res.data || res) as any[];
     },
   });

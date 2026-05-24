@@ -78,6 +78,7 @@ export const Sidebar = () => {
           badgeColor: 'bg-amber-100 text-amber-700'
         },
         { label: 'Cash', href: '/dashboard/cash', icon: Banknote },
+        { label: 'Payments', href: '/dashboard/payments', icon: Banknote },
         { label: 'Reports', href: '/dashboard/reports', icon: BarChart2 },
         { label: 'Subscriptions', href: '/dashboard/subscriptions', icon: Zap },
       ]
@@ -106,6 +107,12 @@ export const Sidebar = () => {
           label: 'Staff', 
           href: '/dashboard/staff', 
           icon: UserCog,
+          hidden: !can('manage:staff')
+        },
+        {
+          label: 'Staff Directory',
+          href: '/dashboard/staff-directory',
+          icon: Users,
           hidden: !can('manage:staff')
         },
       ]

@@ -1,27 +1,67 @@
 'use client';
 
+import Image from 'next/image';
 import { useCustomerDetail } from '@/hooks/useCustomers';
+import { useOrders } from '@/hooks/useOrders';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { 
-  User, Phone, Mail, Calendar, 
-  MapPin, Bike, History, Star, 
-  CreditCard, Loader2, X 
+import {
+  User, Phone, Calendar,
+  MapPin, Bike, History, Star,
+  CreditCard, Loader2, X
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { Separator } from '@/components/ui/separator';
 import { useRouter } from 'next/navigation';
+import type { Order } from '@/types/parts';
 
 interface CustomerDetailPanelProps {
   id: number;
   onClose: () => void;
 }
 
+type BookingRecord = {
+  id: number;
+  booking_status: string;
+  service_name: string;
+  appointment_date: string;
+  total_amount: number;
+  payment_status: string;
+};
+
+type VehicleRecord = {
+  id: number;
+  vehicle_model_details: {
+    brand_name: string;
+    name: string;
+  };
+  registration_number: string;
+  is_default: boolean;
+};
+
+type AddressRecord = {
+  id: number;
+  full_name: string;
+  is_default: boolean;
+  flat_house_no: string;
+  area_street: string;
+  landmark?: string;
+  town_city: string;
+  state: string;
+  pincode: string;
+  phone_number: string;
+};
+
 export function CustomerDetailPanel({ id, onClose }: CustomerDetailPanelProps) {
   const { data: customer, isLoading, error } = useCustomerDetail(id);
   const router = useRouter();
+  const partsOrdersQuery = useOrders(
+    customer?.phone_number ? { phone: customer.phone_number } : {},
+    1,
+    Boolean(customer?.phone_number)
+  );
 
   if (isLoading) {
     return (
@@ -40,15 +80,23 @@ export function CustomerDetailPanel({ id, onClose }: CustomerDetailPanelProps) {
     );
   }
 
+  const partsOrders = partsOrdersQuery.data?.data ?? [];
+
   return (
     <div className="flex flex-col h-full bg-slate-50/30">
-      {/* Header */}
       <div className="p-6 bg-white border-b sticky top-0 z-10 shadow-sm">
         <div className="flex justify-between items-start mb-6">
           <div className="flex gap-4">
             <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center border-2 border-primary/20 overflow-hidden">
               {customer.profile_picture_url ? (
-                <img src={customer.profile_picture_url} alt={customer.full_name} className="h-full w-full object-cover" />
+                <Image
+                  src={customer.profile_picture_url}
+                  alt={customer.full_name}
+                  width={64}
+                  height={64}
+                  unoptimized
+                  className="h-full w-full object-cover"
+                />
               ) : (
                 <User className="h-8 w-8 text-primary" />
               )}
@@ -89,11 +137,13 @@ export function CustomerDetailPanel({ id, onClose }: CustomerDetailPanelProps) {
         </div>
       </div>
 
-      {/* Tabs */}
       <div className="flex-1 p-6">
         <Tabs defaultValue="history" className="w-full">
-          <TabsList className="grid w-full grid-cols-4 mb-6 bg-slate-100/50 p-1">
+          <TabsList className="grid w-full grid-cols-5 mb-6 bg-slate-100/50 p-1">
             <TabsTrigger value="history" className="text-xs font-bold uppercase tracking-tight">History</TabsTrigger>
+            {customer.phone_number ? (
+              <TabsTrigger value="parts-orders" className="text-xs font-bold uppercase tracking-tight">Parts Orders</TabsTrigger>
+            ) : null}
             <TabsTrigger value="vehicles" className="text-xs font-bold uppercase tracking-tight">Vehicles</TabsTrigger>
             <TabsTrigger value="addresses" className="text-xs font-bold uppercase tracking-tight">Addresses</TabsTrigger>
             <TabsTrigger value="info" className="text-xs font-bold uppercase tracking-tight">Info</TabsTrigger>
@@ -109,7 +159,7 @@ export function CustomerDetailPanel({ id, onClose }: CustomerDetailPanelProps) {
               <p className="text-xs text-muted-foreground py-12 text-center italic bg-white rounded-xl border border-dashed">No booking history yet</p>
             ) : (
               <div className="space-y-3">
-                {customer.recent_bookings.map((booking: any) => (
+                {customer.recent_bookings.map((booking: BookingRecord) => (
                   <Card key={booking.id} className="hover:border-primary/30 transition-all cursor-pointer shadow-sm active:scale-[0.98]" onClick={() => router.push(`/dashboard/bookings/${booking.id}`)}>
                     <CardContent className="p-4">
                       <div className="flex justify-between items-start">
@@ -138,6 +188,55 @@ export function CustomerDetailPanel({ id, onClose }: CustomerDetailPanelProps) {
             </Button>
           </TabsContent>
 
+          {customer.phone_number ? (
+            <TabsContent value="parts-orders" className="space-y-4 outline-none">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-bold flex items-center gap-2 text-slate-800">
+                  <History className="h-4 w-4 text-primary" /> Parts Orders
+                </h3>
+              </div>
+              {partsOrdersQuery.isLoading ? (
+                <div className="rounded-xl border border-dashed bg-white p-8 text-center">
+                  <Loader2 className="mx-auto h-5 w-5 animate-spin text-primary" />
+                </div>
+              ) : partsOrdersQuery.error ? (
+                <p className="text-xs text-destructive py-12 text-center italic bg-white rounded-xl border border-dashed">Failed to load parts orders</p>
+              ) : partsOrders.length === 0 ? (
+                <p className="text-xs text-muted-foreground py-12 text-center italic bg-white rounded-xl border border-dashed">No parts orders found for this phone number</p>
+              ) : (
+                <div className="space-y-3">
+                  {partsOrders.map((order: Order) => (
+                    <Card
+                      key={order.id}
+                      className="hover:border-primary/30 transition-all cursor-pointer shadow-sm active:scale-[0.98]"
+                      onClick={() => router.push(`/dashboard/orders/${order.id}`)}
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-bold text-slate-800 tracking-tight">#{order.id}</span>
+                              <StatusBadge status={order.status} />
+                            </div>
+                            <p className="text-[10px] text-slate-500">{new Date(order.created_at).toLocaleDateString()}</p>
+                            <div className="flex items-center gap-2 text-[11px] font-medium text-slate-600">
+                              <span>{order.items?.length ?? 0} items</span>
+                              <span>•</span>
+                              <span>₹{order.amount_total}</span>
+                            </div>
+                          </div>
+                          <div className="sm:text-right">
+                            <StatusBadge status={order.payment_status} type="payment" />
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+          ) : null}
+
           <TabsContent value="vehicles" className="space-y-4 outline-none">
             <h3 className="text-sm font-bold flex items-center gap-2 text-slate-800">
               <Bike className="h-4 w-4 text-primary" /> Saved Vehicles
@@ -146,7 +245,7 @@ export function CustomerDetailPanel({ id, onClose }: CustomerDetailPanelProps) {
               <p className="text-xs text-muted-foreground py-12 text-center italic bg-white rounded-xl border border-dashed">No vehicles registered</p>
             ) : (
               <div className="space-y-3">
-                {customer.vehicles.map((v: any) => (
+                {customer.vehicles.map((v: VehicleRecord) => (
                   <Card key={v.id} className="shadow-sm">
                     <CardContent className="p-4 flex items-center gap-4">
                       <div className="h-12 w-12 bg-slate-100 rounded-xl flex items-center justify-center shrink-0 border border-slate-200">
@@ -172,7 +271,7 @@ export function CustomerDetailPanel({ id, onClose }: CustomerDetailPanelProps) {
               <p className="text-xs text-muted-foreground py-12 text-center italic bg-white rounded-xl border border-dashed">No addresses saved</p>
             ) : (
               <div className="space-y-3">
-                {customer.addresses.map((addr: any) => (
+                {customer.addresses.map((addr: AddressRecord) => (
                   <Card key={addr.id} className="shadow-sm">
                     <CardContent className="p-4">
                       <div className="flex justify-between items-start mb-2.5">
@@ -218,9 +317,9 @@ export function CustomerDetailPanel({ id, onClose }: CustomerDetailPanelProps) {
                 </div>
               </div>
             </div>
-            
+
             <Separator className="opacity-50" />
-            
+
             <div className="bg-slate-50/50 rounded-xl border border-dashed p-6">
               <h3 className="text-sm font-bold text-slate-800 mb-2">Internal Notes</h3>
               <p className="text-[11px] text-slate-400 font-medium italic">No internal notes for this customer.</p>

@@ -12,12 +12,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useRouter } from 'next/navigation';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Badge } from '@/components/ui/badge';
+import { StockBadge } from '@/components/ui/StockBadge';
 import { CategoryFormModal } from '@/components/inventory/CategoryFormModal';
 import { BrandFormModal } from '@/components/inventory/BrandFormModal';
+import { NewPartForm } from '@/components/inventory/NewPartForm';
+import { EditPartModal } from '@/components/inventory/EditPartModal';
 
 export default function InventoryPage() {
   const router = useRouter();
   const [search, setSearch] = useState('');
+  const [newPartOpen, setNewPartOpen] = useState(false);
+  const [editPart, setEditPart] = useState<any>(null);
   const debouncedSearch = useDebounce(search, 400);
   
   const { data: parts, isLoading: partsLoading, deletePart } = useParts({ q: debouncedSearch });
@@ -60,9 +65,9 @@ export default function InventoryPage() {
     { 
       header: 'Stock', 
       accessor: (p: any) => (
-        <div className="flex flex-col">
-          <span className={`text-xs font-bold ${p.stock_qty < 5 ? 'text-red-500' : 'text-slate-700'}`}>{p.stock_qty} Units</span>
-          <span className="text-[9px] text-muted-foreground font-bold uppercase tracking-tighter">Min: {p.min_stock_level}</span>
+        <div className="flex flex-col gap-1">
+          <span className="text-xs font-bold text-slate-700">{p.stock_qty} Units</span>
+          <StockBadge stock_qty={p.stock_qty} />
         </div>
       )
     },
@@ -79,7 +84,7 @@ export default function InventoryPage() {
       header: 'Actions', 
       accessor: (p: any) => (
         <div className="flex justify-end gap-1 px-4">
-          <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400 hover:text-[#378ADD]" onClick={() => router.push(`/dashboard/inventory/${p.id}`)}>
+          <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400 hover:text-[#378ADD]" onClick={() => setEditPart(p)}>
             <Edit3 className="h-3.5 w-3.5" />
           </Button>
           <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:bg-red-50" onClick={() => setDeleteConfirm({type: 'part', id: p.id})}>
@@ -98,7 +103,7 @@ export default function InventoryPage() {
       accessor: (c: any) => (
         <div className="flex items-center gap-3 py-2">
           <div className="h-10 w-10 bg-slate-50 rounded border flex items-center justify-center overflow-hidden shrink-0">
-             {c.image ? <img src={c.image} className="h-full w-full object-cover" /> : <Tag className="h-4 w-4 text-slate-300" />}
+             {c.image ? <img src={c.image.thumbnail || c.image} className="h-full w-full object-cover" /> : <Tag className="h-4 w-4 text-slate-300" />}
           </div>
           <span className="text-xs font-bold uppercase tracking-tight text-slate-800">{c.name}</span>
         </div>
@@ -139,7 +144,7 @@ export default function InventoryPage() {
       accessor: (b: any) => (
         <div className="flex items-center gap-3 py-2">
           <div className="h-10 w-10 bg-white rounded border flex items-center justify-center overflow-hidden p-1 shrink-0">
-             {b.logo ? <img src={b.logo} className="h-full w-full object-contain" /> : <Award className="h-4 w-4 text-slate-300" />}
+             {b.logo ? <img src={b.logo.thumbnail || b.logo} className="h-full w-full object-contain" /> : <Award className="h-4 w-4 text-slate-300" />}
           </div>
           <span className="text-xs font-bold uppercase tracking-tight text-slate-800">{b.name}</span>
         </div>
@@ -183,7 +188,7 @@ export default function InventoryPage() {
         title="Inventory" 
         subtitle="Manage spare parts, stock levels and catalog"
         actions={
-          <Button className="h-9 text-xs font-bold uppercase tracking-widest gap-1.5 bg-[#378ADD] hover:bg-[#2D6FA3] shadow-sm" onClick={() => router.push('/dashboard/inventory/new')}>
+          <Button className="h-9 text-xs font-bold uppercase tracking-widest gap-1.5 bg-[#378ADD] hover:bg-[#2D6FA3] shadow-sm" onClick={() => setNewPartOpen(true)}>
             <Plus className="h-3.5 w-3.5" /> Add Part
           </Button>
         }
@@ -261,6 +266,19 @@ export default function InventoryPage() {
         onClose={() => setBrandModal({ open: false, data: null })} 
         brand={brandModal.data} 
       />
+
+      <NewPartForm 
+        open={newPartOpen} 
+        onOpenChange={setNewPartOpen} 
+      />
+
+      {editPart && (
+        <EditPartModal
+          open={!!editPart}
+          part={editPart}
+          onOpenChange={(open) => !open && setEditPart(null)}
+        />
+      )}
 
       <ConfirmDialog 
         open={!!deleteConfirm.id}

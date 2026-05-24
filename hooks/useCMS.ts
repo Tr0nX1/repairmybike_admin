@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { get, post, patch, del } from '@/lib/api-client';
+import apiClient, { get, post, patch, del } from '@/lib/api-client';
 import { ApiResponse, PaginatedResponse } from '@/types/api';
 import { toast } from 'sonner';
 
@@ -28,7 +28,16 @@ export const useCMS = () => {
   });
 
   const createBanner = useMutation({
-    mutationFn: (data: Partial<Banner>) => post<ApiResponse<Banner>>('/api/cms/banners/', data),
+    mutationFn: (data: FormData | Partial<Banner>) => {
+      if (data instanceof FormData) {
+        return apiClient.post<ApiResponse<Banner>>('/api/cms/banners/', data, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        }) as any;
+      }
+      return post<ApiResponse<Banner>>('/api/cms/banners/', data);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['banners'] });
       toast.success('Banner created successfully');
@@ -37,8 +46,16 @@ export const useCMS = () => {
   });
 
   const updateBanner = useMutation({
-    mutationFn: ({ id, ...data }: Partial<Banner> & { id: number }) => 
-      patch<ApiResponse<Banner>>(`/api/cms/banners/${id}/`, data),
+    mutationFn: ({ id, data }: { id: number; data: FormData | Partial<Banner> }) => {
+      if (data instanceof FormData) {
+        return apiClient.patch<ApiResponse<Banner>>(`/api/cms/banners/${id}/`, data, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        }) as any;
+      }
+      return patch<ApiResponse<Banner>>(`/api/cms/banners/${id}/`, data);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['banners'] });
       toast.success('Banner updated');

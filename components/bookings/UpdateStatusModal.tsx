@@ -9,7 +9,7 @@ import {
   DialogDescription 
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useBookingDetail } from '@/hooks/useBookingDetail';
 import { Loader2, AlertCircle } from 'lucide-react';
 import { 
@@ -20,10 +20,13 @@ import {
   SelectValue 
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import type { BookingStatus } from '@/types/enums';
+import { getValidNextBookingStatuses } from '@/lib/booking-transitions';
+import { toast } from 'sonner';
 
 interface UpdateStatusModalProps {
   bookingId: number | null;
-  currentStatus?: string;
+  currentStatus?: BookingStatus;
   open: boolean;
   onClose: () => void;
   onSuccess?: () => void;
@@ -31,30 +34,31 @@ interface UpdateStatusModalProps {
 
 export const UpdateStatusModal = ({ bookingId, currentStatus, open, onClose, onSuccess }: UpdateStatusModalProps) => {
   const { updateStatus } = useBookingDetail(bookingId || undefined);
-  const [selectedStatus, setSelectedStatus] = useState<string>(currentStatus || '');
+  const [selectedStatus, setSelectedStatus] = useState<BookingStatus | ''>(currentStatus || '');
   const [notes, setNotes] = useState('');
 
-  const statusLifecycle: Record<string, string[]> = {
-    'pending': ['confirmed', 'cancelled'],
-    'confirmed': ['en_route', 'cancelled'],
-    'en_route': ['arrived'],
-    'arrived': ['started'],
-    'started': ['completed', 'cancelled'],
-    'completed': [],
-    'cancelled': []
-  };
+  const allowedStatuses = getValidNextBookingStatuses(currentStatus);
 
-  const allowedStatuses = currentStatus ? statusLifecycle[currentStatus] || [] : [];
+  useEffect(() => {
+    if (!open) return;
+    setSelectedStatus('');
+    setNotes('');
+  }, [currentStatus, open]);
 
   const handleUpdate = async () => {
     if (!bookingId || !selectedStatus) return;
 
     try {
-      await updateStatus.mutateAsync(selectedStatus);
+      await updateStatus.mutateAsync({ status: selectedStatus, notes });
       onSuccess?.();
       onClose();
-    } catch (e) {
-      // Error handled by mutation toast
+    } catch (error) {
+      const code = (error as { code?: string }).code;
+      if (code === 'INVALID_TRANSITION') {
+        toast.error('This transition is not allowed');
+        return;
+      }
+      toast.error((error as Error).message || 'Failed to update status');
     }
   };
 
@@ -74,7 +78,10 @@ export const UpdateStatusModal = ({ bookingId, currentStatus, open, onClose, onS
           <div className="space-y-2">
             <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Next Status</label>
             {allowedStatuses.length > 0 ? (
-              <Select defaultValue={selectedStatus} onValueChange={(val: string | null) => setSelectedStatus(val || '')}>
+              <Select
+                defaultValue={selectedStatus}
+                onValueChange={(val: string | null) => setSelectedStatus((val as BookingStatus) || '')}
+              >
                 <SelectTrigger className="w-full h-10">
                   <SelectValue placeholder="Select new status" />
                 </SelectTrigger>

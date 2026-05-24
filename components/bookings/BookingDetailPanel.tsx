@@ -11,18 +11,15 @@ import { useBookingDetail } from '@/hooks/useBookingDetail';
 import { usePaymentCollection } from '@/hooks/usePaymentCollection';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { Button } from '@/components/ui/button';
-import { Loader2, User, Phone, MapPin, Calendar, Clock, Trash2, Plus, Banknote, CheckCircle2 } from 'lucide-react';
+import { Loader2, User, Phone, MapPin, Banknote, CheckCircle2 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { useState, useEffect } from 'react';
+import { isTerminalBookingStatus } from '@/lib/booking-transitions';
+import { UpdateStatusModal } from './UpdateStatusModal';
+import { BookingPartsPanel } from './BookingPartsPanel';
+import { BookingServicesPanel } from './BookingServicesPanel';
 
 interface BookingDetailPanelProps {
   id: number | null;
@@ -33,12 +30,11 @@ interface BookingDetailPanelProps {
 export const BookingDetailPanel = ({ id, open, onOpenChange }: BookingDetailPanelProps) => {
   const [isCollecting, setIsCollecting] = useState(false);
   const [collectionAmount, setCollectionAmount] = useState('');
+  const [statusModalOpen, setStatusModalOpen] = useState(false);
   
   const { 
     data: booking, 
-    isLoading, 
-    updateStatus, 
-    removePart 
+    isLoading
   } = useBookingDetail(id || undefined);
 
   const { collectPayment } = usePaymentCollection();
@@ -50,8 +46,6 @@ export const BookingDetailPanel = ({ id, open, onOpenChange }: BookingDetailPane
   }, [booking]);
 
   if (!id) return null;
-
-  const statuses = ['pending', 'confirmed', 'en_route', 'arrived', 'started', 'completed', 'cancelled'];
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -96,68 +90,39 @@ export const BookingDetailPanel = ({ id, open, onOpenChange }: BookingDetailPane
               {/* Status Update */}
               <section className="space-y-3">
                 <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Update Status</h4>
-                <Select 
-                  defaultValue={booking.booking_status} 
-                  onValueChange={(val: string | null) => val && updateStatus.mutate(val)}
-                  disabled={updateStatus.isPending}
+                <Button
+                  variant="outline"
+                  className="w-full h-10 justify-between text-xs font-bold uppercase tracking-wider"
+                  disabled={isTerminalBookingStatus(booking.booking_status)}
+                  onClick={() => setStatusModalOpen(true)}
                 >
-                  <SelectTrigger className="w-full h-10">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {statuses.map(s => (
-                      <SelectItem key={s} value={s} className="capitalize">{s}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  <span>Change Status</span>
+                  <StatusBadge status={booking.booking_status} />
+                </Button>
+                {booking.internal_notes && (
+                  <div className="rounded-md border bg-slate-50 p-3">
+                    <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                      Last status note
+                    </p>
+                    <p className="whitespace-pre-wrap text-xs text-slate-700">
+                      {booking.internal_notes}
+                    </p>
+                  </div>
+                )}
               </section>
 
-              {/* Services & Parts */}
-              <section className="space-y-3">
-                <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Service Items</h4>
-                <div className="space-y-2">
-                  {booking.booking_services.map(s => (
-                    <div key={s.id} className="flex items-center justify-between p-2 rounded-md bg-slate-50 border border-dashed text-xs">
-                      <span className="font-medium">{s.service}</span>
-                      <span className="font-bold">₹{parseFloat(s.price).toLocaleString()}</span>
-                    </div>
-                  ))}
-                </div>
-                
-                <div className="pt-2">
-                  <div className="flex items-center justify-between mb-2">
-                    <h5 className="text-[10px] font-bold text-muted-foreground uppercase">Spare Parts</h5>
-                    <Button variant="ghost" size="sm" className="h-6 text-[10px] gap-1 text-[#378ADD]">
-                      <Plus className="h-3 w-3" /> Add Part
-                    </Button>
-                  </div>
-                  <div className="space-y-2">
-                    {booking.booking_parts.length === 0 ? (
-                      <div className="text-[10px] text-center py-4 text-muted-foreground bg-slate-50 rounded-md border border-dashed">
-                        No parts added yet
-                      </div>
-                    ) : (
-                      booking.booking_parts.map(p => (
-                        <div key={p.id} className="flex items-center justify-between p-2 rounded-md border text-xs bg-white group">
-                          <div className="flex flex-col">
-                            <span className="font-medium">{p.part_name}</span>
-                            <span className="text-[10px] text-muted-foreground">Qty: {p.quantity} × ₹{parseFloat(p.unit_price).toLocaleString()}</span>
-                          </div>
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="h-7 w-7 text-muted-foreground hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                            onClick={() => removePart.mutate(p.id)}
-                            disabled={removePart.isPending}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-              </section>
+              <BookingServicesPanel
+                bookingId={booking.id}
+                bookingServices={booking.booking_services}
+                bookingStatus={booking.booking_status}
+                vehicleModelId={booking.vehicle_model}
+              />
+
+              <BookingPartsPanel
+                bookingId={booking.id}
+                bookingStatus={booking.booking_status}
+                parts={booking.booking_parts}
+              />
 
               <Separator />
 
@@ -226,6 +191,12 @@ export const BookingDetailPanel = ({ id, open, onOpenChange }: BookingDetailPane
                 )}
               </section>
             </div>
+            <UpdateStatusModal
+              bookingId={booking.id}
+              currentStatus={booking.booking_status}
+              open={statusModalOpen}
+              onClose={() => setStatusModalOpen(false)}
+            />
           </>
         ) : (
           <div className="p-6 text-center text-sm text-muted-foreground">

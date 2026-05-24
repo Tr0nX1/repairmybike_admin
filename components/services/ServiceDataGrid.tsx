@@ -33,7 +33,7 @@ export const ServiceDataGrid = () => {
     { 
       header: 'Category', 
       accessor: (s: Service) => (
-        <span className="text-[10px] font-bold uppercase text-muted-foreground">Cat ID: {s.service_category}</span>
+        <span className="text-[10px] font-bold uppercase text-muted-foreground">{s.category_name ?? s.service_category}</span>
       ),
       width: '150px'
     },

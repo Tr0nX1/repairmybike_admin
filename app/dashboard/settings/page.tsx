@@ -1,12 +1,13 @@
 'use client';
 
+import Link from 'next/link';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Info, ExternalLink, ShieldAlert, CreditCard, Bell, Settings as SettingsIcon } from 'lucide-react';
+import { Info, ExternalLink, ShieldAlert, CreditCard, Bell, Settings as SettingsIcon, Building2 } from 'lucide-react';
 
 export default function SettingsPage() {
   return (
@@ -52,6 +53,25 @@ export default function SettingsPage() {
                 <label className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest">Base API URL</label>
                 <Input defaultValue="http://localhost:8000" readOnly className="text-xs bg-slate-50 font-medium" />
               </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-[0.5px] shadow-sm">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-sm font-bold flex items-center gap-2">
+                <Building2 className="h-4 w-4 text-[#378ADD]" /> Shop Profile
+              </CardTitle>
+              <CardDescription className="text-xs">Manage the shop identity, contact details, and operating hours.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-[10px] text-muted-foreground leading-relaxed">
+                Update the branch profile shown across customer-facing surfaces and store locator flows.
+              </p>
+              <Link href="/dashboard/settings/shop">
+                <Button size="sm" className="h-8 text-[10px] font-bold uppercase gap-1.5 bg-[#378ADD]">
+                  Open Shop Profile
+                </Button>
+              </Link>
             </CardContent>
           </Card>
         </TabsContent>

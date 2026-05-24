@@ -3,20 +3,27 @@
 import { useQuery } from '@tanstack/react-query';
 import { get } from '@/lib/api-client';
 import { Booking } from '@/types/booking';
+import { BOOKING_PAYMENT_METHOD, BOOKING_PAYMENT_STATUS } from '@/types/enums';
 import { useMemo } from 'react';
 
 export const useCashBookings = () => {
   const pendingQuery = useQuery<{ data: Booking[]; count: number }>({
     queryKey: ['bookings', 'cash', 'pending'],
     queryFn: () => get<{ data: Booking[]; count: number }>('/api/staff/bookings/', { 
-      params: { payment_method: 'cash', payment_status: 'pending' } 
+      params: {
+        payment_method: BOOKING_PAYMENT_METHOD.CASH,
+        payment_status: BOOKING_PAYMENT_STATUS.PENDING,
+      } 
     }),
   });
 
   const completedQuery = useQuery<{ data: Booking[]; count: number }>({
     queryKey: ['bookings', 'cash', 'completed'],
     queryFn: () => get<{ data: Booking[]; count: number }>('/api/staff/bookings/', { 
-      params: { payment_method: 'cash', payment_status: 'completed' } 
+      params: {
+        payment_method: BOOKING_PAYMENT_METHOD.CASH,
+        payment_status: BOOKING_PAYMENT_STATUS.COMPLETED,
+      } 
     }),
   });
 

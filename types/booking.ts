@@ -1,13 +1,9 @@
-export enum BookingStatus {
-  PENDING = 'pending',
-  ASSIGNED = 'assigned',
-  CONFIRMED = 'confirmed',
-  EN_ROUTE = 'en_route',
-  ARRIVED = 'arrived',
-  STARTED = 'started',
-  COMPLETED = 'completed',
-  CANCELLED = 'cancelled'
-}
+import type {
+  BookingPartApprovalStatus,
+  BookingPaymentMethod,
+  BookingPaymentStatus,
+  BookingStatus,
+} from './enums';
 
 export interface BookingService {
   id: number;
@@ -15,6 +11,7 @@ export interface BookingService {
   service_name?: string;
   category_name?: string;
   price: string;
+  created_at?: string;
 }
 
 export interface BookingPart {
@@ -25,7 +22,7 @@ export interface BookingPart {
   quantity: number;
   unit_price: string;
   total_price?: string;
-  approval_status?: 'pending' | 'approved' | 'rejected';
+  approval_status?: BookingPartApprovalStatus;
   approved_by?: number | null;
   approved_by_name?: string | null;
   approved_at?: string | null;
@@ -48,8 +45,8 @@ export interface Booking {
   vehicle_brand_name?: string;
   vehicle_type_name?: string;
   booking_status: BookingStatus;
-  payment_status: 'pending' | 'completed';
-  payment_method: 'cash' | 'razorpay';
+  payment_status: BookingPaymentStatus;
+  payment_method: BookingPaymentMethod;
   total_amount: string;
   service_location?: 'home' | 'shop';
   address?: string | null;
@@ -71,7 +68,7 @@ export interface Booking {
 
 export interface BookingFilters {
   status?: BookingStatus;
-  payment_status?: string;
+  payment_status?: BookingPaymentStatus;
   date_from?: string;
   date_to?: string;
 }

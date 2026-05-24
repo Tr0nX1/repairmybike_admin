@@ -10,6 +10,7 @@ export interface Service {
   name: string;
   description: string;
   service_category: number;
+  category_name?: string;
   is_featured: boolean;
   specifications: any;
   images: any;

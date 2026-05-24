@@ -54,8 +54,10 @@ export const PartDataGrid = ({ parts, isLoading }: PartDataGridProps) => {
     try {
       await updatePart.mutateAsync({ 
         id, 
-        stock_qty: editStock, 
-        sale_price: editPrice 
+        data: {
+          stock_qty: editStock, 
+          sale_price: editPrice 
+        }
       });
       setInlineEditingId(null);
     } catch (e) {}
