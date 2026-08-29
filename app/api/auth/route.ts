@@ -26,14 +26,23 @@ export async function POST(request: NextRequest) {
         
         // Backend returns a flat object. We wrap it in a standard ApiResponse for the frontend.
         const responseData = response.data;
+        const rawUser = responseData.user || {};
         
+        const formattedUser = {
+          ...rawUser,
+          is_manager: Boolean(rawUser.is_manager),
+          is_superuser: Boolean(rawUser.is_superuser),
+          is_staff: Boolean(rawUser.is_staff ?? true),
+          role: (rawUser.is_superuser || rawUser.is_manager || rawUser.role === 'admin') ? 'admin' : 'staff',
+        };
+
         return NextResponse.json({
           error: false,
           message: responseData.message || 'Login successful',
           data: {
             token: responseData.session_token || responseData.token,
             refresh_token: responseData.refresh_token || null,
-            user: responseData.user
+            user: formattedUser
           }
         });
       } catch (error: any) {

@@ -6,6 +6,9 @@ interface User {
   email: string;
   role: 'admin' | 'staff';
   name: string;
+  is_manager?: boolean;
+  is_superuser?: boolean;
+  is_staff?: boolean;
 }
 
 interface AuthState {

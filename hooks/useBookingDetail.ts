@@ -23,6 +23,11 @@ type AddBookingPartPayload = {
   quantity: number;
 };
 
+type AddBookingServicePayload = {
+  service_id: number;
+  custom_price?: number;
+};
+
 export const useBookingDetail = (id?: number) => {
   const queryClient = useQueryClient();
 
@@ -127,8 +132,20 @@ export const useBookingDetail = (id?: number) => {
     },
   });
 
-  // TODO: add-service endpoint support is not available in the current backend.
-  // If /api/staff/bookings/{id}/add-service/ is implemented, add addService() here.
+  const addService = useMutation({
+    mutationFn: async (data: AddBookingServicePayload) => {
+      try {
+        return await post<ApiResponse<Booking>>(`/api/staff/bookings/${id}/add-service/`, data);
+      } catch (error) {
+        throw error as ApiErrorWithCode;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['bookings', id] });
+      queryClient.invalidateQueries({ queryKey: ['bookings'] });
+      toast.success('Service added to booking');
+    }
+  });
 
   const updateBooking = useMutation({
     mutationFn: (data: Partial<Booking>) => 
@@ -147,6 +164,7 @@ export const useBookingDetail = (id?: number) => {
     updateStatus,
     assignMechanic,
     addPart,
+    addService,
     removePart,
     approvePart,
     rejectPart,
