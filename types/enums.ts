@@ -61,3 +61,15 @@ export const SUBSCRIPTION_STATUS = [
   'expired',
 ] as const;
 export type SubscriptionStatus = typeof SUBSCRIPTION_STATUS[number];
+
+export const QUICK_SERVICE_STATUS = {
+  INITIATED: 'initiated',
+  CONTACTED: 'contacted',
+  MECHANIC_DISPATCHED: 'mechanic_dispatched',
+  IN_PROGRESS: 'in_progress',
+  COMPLETED: 'completed',
+  CANCELLED: 'cancelled',
+} as const;
+
+export type QuickServiceStatus = typeof QUICK_SERVICE_STATUS[keyof typeof QUICK_SERVICE_STATUS];
+

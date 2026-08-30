@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 
 interface StatusBadgeProps {
   status: string;
-  type?: 'booking' | 'payment';
+  type?: 'booking' | 'payment' | 'quick_service';
   className?: string;
 }
 
@@ -47,7 +47,30 @@ export const StatusBadge = ({ status, type = 'booking', className }: StatusBadge
     }
   };
 
-  const style = type === 'booking' ? getBookingStyles(status) : getPaymentStyles(status);
+  const getQuickServiceStyles = (s: string): string | null => {
+    switch (s.toLowerCase()) {
+      case 'initiated':
+        return 'bg-blue-100 text-blue-800 border-none hover:bg-blue-100';
+      case 'contacted':
+        return 'bg-amber-100 text-amber-800 border-none hover:bg-amber-100';
+      case 'mechanic_dispatched':
+        return 'bg-purple-100 text-purple-800 border-none hover:bg-purple-100';
+      case 'in_progress':
+        return 'bg-orange-100 text-orange-800 border-none hover:bg-orange-100';
+      case 'completed':
+        return 'bg-emerald-100 text-emerald-800 border-none hover:bg-emerald-100';
+      case 'cancelled':
+        return 'bg-rose-100 text-rose-800 border-none hover:bg-rose-100';
+      default:
+        return null;
+    }
+  };
+
+  const style = type === 'booking' 
+    ? getBookingStyles(status) 
+    : type === 'quick_service' 
+      ? getQuickServiceStyles(status)
+      : getPaymentStyles(status);
 
   if (style === null) {
     return (
@@ -58,7 +81,7 @@ export const StatusBadge = ({ status, type = 'booking', className }: StatusBadge
           className
         )}
       >
-        {status}
+        {status.replace(/_/g, ' ')}
       </Badge>
     );
   }
@@ -72,7 +95,7 @@ export const StatusBadge = ({ status, type = 'booking', className }: StatusBadge
         className
       )}
     >
-      {status}
+      {status.replace(/_/g, ' ')}
     </Badge>
   );
 };

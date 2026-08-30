@@ -26,7 +26,8 @@ import {
   Bell,
   Globe,
   Bike,
-  MessageSquare
+  MessageSquare,
+  PhoneCall
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -77,6 +78,7 @@ export const Sidebar = () => {
           badge: stats?.booking_status?.pending,
           badgeColor: 'bg-amber-100 text-amber-700'
         },
+        { label: 'Quick Service', href: '/dashboard/quick-service', icon: PhoneCall },
         { label: 'Cash', href: '/dashboard/cash', icon: Banknote },
         { label: 'Payments', href: '/dashboard/payments', icon: Banknote },
         { label: 'Reports', href: '/dashboard/reports', icon: BarChart2 },
