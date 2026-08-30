@@ -22,7 +22,7 @@ export default function SettingsPage() {
         <AlertTitle className="text-xs font-bold uppercase tracking-wider">Note: Multi-system Control</AlertTitle>
         <AlertDescription className="text-[11px] font-medium leading-relaxed">
           Core database schemas, model permissions, and low-level API configurations are managed via the 
-          <a href="http://localhost:8000/admin" target="_blank" className="inline-flex items-center gap-1 mx-1 text-[#378ADD] hover:underline">
+          <a href={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/admin`} target="_blank" className="inline-flex items-center gap-1 mx-1 text-[#378ADD] hover:underline">
             Django Admin Panel <ExternalLink className="h-2.5 w-2.5" />
           </a>
         </AlertDescription>
@@ -51,7 +51,7 @@ export default function SettingsPage() {
               </div>
               <div className="grid gap-2 max-w-md">
                 <label className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest">Base API URL</label>
-                <Input defaultValue="http://localhost:8000" readOnly className="text-xs bg-slate-50 font-medium" />
+                <Input defaultValue={process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'} readOnly className="text-xs bg-slate-50 font-medium" />
               </div>
             </CardContent>
           </Card>
